@@ -17,49 +17,57 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-
+# TODO put in config file
 TRAIN_FOLDER_PATH = "E:/Image Datasets/Intel Scenes/archive/seg_train/seg_train"
 TEST_FOLDER_PATH = "E:/Image Datasets/Intel Scenes/archive/seg_test/seg_test"
 
-def load_intel_scene_data(batch=10, root_path="E:/Image Datasets/Intel Scenes/"):
-    transform = transforms.Compose([transforms.ToTensor()])
+class IntelScenesDataset(Dataset):
+    """Intel Scenes dataset from Kaggle."""
 
-    dataset = ImageFolder(root=TRAIN_FOLDER_PATH, transform=transform)
-    
-    torch.manual_seed(43)
-    train_dataset, val_dataset = random_split(dataset, [11928, len(dataset) - 11928])
-
-    train_data_loader = DataLoader(train_dataset, batch_size=batch, shuffle=True,  num_workers=4)
-    val_data_loader = DataLoader(val_dataset, batch_size=batch, shuffle=True,  num_workers=4)
-
-    test_data = ImageFolder(root=TEST_FOLDER_PATH, transform=transform)
-    test_data_loader  = DataLoader(test_data, batch_size=batch, shuffle=True, num_workers=4)
-
-    return train_data_loader, val_data_loader, test_data_loader
-
-
-class IntelSceneDataset(Dataset):
-    """Face Landmarks dataset."""
-
-    def __init__(self, image_folder, root_dir, transform=None):
+    def __init__(self, csv_file, train_root_dir: str, test_root_dir: str, transform=None):
         """
         Args:
-            image_folder (string): Path to the folder with annotations.
-
+            train_root_dir (string): Directory with all the training images.
+            test_root_dir (string): Directory with all the testing images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
         """
-        pass
+        self.test_root_dir = test_root_dir
+        self.train_root_dir = train_root_dir
+        self.transform = transform
 
     def __len__(self):
-        return len(self.landmarks_frame)
+        return 0
 
     def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        img_name = os.path.join(self.root_dir,
+                                self.landmarks_frame.iloc[idx, 0])
+        image = io.imread(img_name)
+        landmarks = self.landmarks_frame.iloc[idx, 1:]
+        landmarks = np.array([landmarks])
+        landmarks = landmarks.astype('float').reshape(-1, 2)
+        sample = {'image': image, 'landmarks': landmarks}
+
+        if self.transform:
+            sample = self.transform(sample)
 
         return sample
 
-if __name__ == "__main__":
-    tr, va, te = load_intel_scene_data()
+    def get_dataloaders(self, batch=10):
+        transform = transforms.Compose([transforms.ToTensor()]) if self.transform is None else self.transform
 
-    images, labels = iter(tr).next()
+        dataset = ImageFolder(root=self.train_root_dir, transform=transform)
+        
+        torch.manual_seed(43)
+        train_dataset, val_dataset = random_split(dataset, [11928, len(dataset) - 11928])
 
-    plt.imshow(images[0][0].numpy())
-    plt.show()
+        train_data_loader = DataLoader(train_dataset, batch_size=batch, shuffle=True,  num_workers=4)
+        val_data_loader = DataLoader(val_dataset, batch_size=batch, shuffle=True,  num_workers=4)
+
+        test_data = ImageFolder(root=self.test_root_dir, transform=transform)
+        test_data_loader  = DataLoader(test_data, batch_size=batch, shuffle=True, num_workers=4)
+
+        return train_data_loader, val_data_loader, test_data_loader

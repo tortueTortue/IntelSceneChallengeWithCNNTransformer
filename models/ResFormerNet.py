@@ -73,11 +73,6 @@ train_loader, test_loader = load_intel_scene_data()
 
 resformer.train()
 
-def accuracy(outputs, labels):
-    _, preds = torch.max(outputs, dim=1)
-
-    return torch.tensor(torch.sum(preds == labels).item() / len(preds))
-
 def validation_step(model, batch):
     images, labels = batch 
     images, labels = images.cuda(), labels.cuda()
@@ -112,11 +107,17 @@ def train(epochs_no, model: nn.Module, train_set: DataLoader, val_set: DataLoade
             #optimizer.zero_grad()
         """ Validation phase """
         result = evaluate(model, val_set)
-        model.epoch_end(epoch, result)
         history.append(result)
+        if epoch % 10 == 0 :
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': curr_loss,
+                }, PATH)
     return history
 
-def train_model(epochs_no, model_to_train):
+def train_model(epochs_no, model_to_train, model_name, dataset):
     device = get_default_device()
 
     batches_to_device(train_loader, device)
@@ -129,3 +130,4 @@ def train_model(epochs_no, model_to_train):
 
 
 train_model(5, resformer)
+
