@@ -22,3 +22,5 @@
 |Mountain   |      89 %|
 |Sea        |      97 %|
 |Street     |      93 %|
+
+# Training configs
